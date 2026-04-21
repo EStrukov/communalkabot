@@ -12,7 +12,7 @@ let data = {};
 try {
   data = require('./' + DATA_FILE);
 } catch (e) {
-  data = { users: {}, lastReminder: null };
+  data = { history: {}, lastReminder: null };
 }
 
 // Сохраняем данные в файл
@@ -53,54 +53,52 @@ function checkReminder(isStartupCheck = false) {
 
 // Отправляем напоминание всем пользователям
 function sendReminder() {
-  // Получаем уникальные id чатов
-  const uniqueChats = [...new Set(Object.values(data.users).map(u => u.chatId))];
+  const chatId = Number(process.env.DEFAULT_CHAT_ID);
   
-  // Принудительно добавляем основной чат если указан в переменных окружения
-  if (process.env.DEFAULT_CHAT_ID) {
-    const defaultChatId = Number(process.env.DEFAULT_CHAT_ID);
-    if (!uniqueChats.includes(defaultChatId)) {
-      uniqueChats.push(defaultChatId);
-    }
+  if (!chatId) {
+    console.log('❌ DEFAULT_CHAT_ID не указан в переменных окружения');
+    return;
   }
   
-  console.log(`✅ Найдено чатов для отправки: ${uniqueChats.length}`);
-  console.log(`ID чатов: ${uniqueChats.join(', ')}`);
+  console.log(`✅ Отправляю напоминание в чат ${chatId}`);
 
-  uniqueChats.forEach(chatId => {
-    bot.sendMessage(chatId, '🔔 Внимание! Пришло время скинуть коммуналку! 🏠💰\nИспользуйте команду /communal')
-      .then(() => {
-        console.log(`✅ Напоминание успешно отправлено в чат ${chatId}`);
-      })
-      .catch(err => {
-        console.log(`❌ Ошибка отправки в чат ${chatId}:`, err.message);
-      });
-  });
+  bot.sendMessage(chatId, '🔔 Внимание! Пришло время скинуть коммуналку! 🏠💰\nИспользуйте команду /communal')
+    .then(() => {
+      console.log(`✅ Напоминание успешно отправлено!`);
+    })
+    .catch(err => {
+      console.log(`❌ Ошибка отправки:`, err.message);
+    });
 }
 
 // Обработка команды /communal
 bot.onText(/\/communal/, (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
   const userName = msg.from.first_name;
-  console.log(`📩 Команда /communal получена из чата ID: ${chatId}, от пользователя: ${userName} (${userId})`);
-  const userKey = `${chatId}_${userId}`;
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  console.log(`📩 Команда /communal получена, месяц: ${monthKey}, от пользователя: ${userName}`);
 
-  // Сохраняем информацию о пользователе
-  if (!data.users[userKey]) {
-    data.users[userKey] = { id: userId, chatId: chatId, name: userName, communal: null, payment: null };
+  // Инициализируем месяц если еще нет
+  if (!data.history[monthKey]) {
+    data.history[monthKey] = { communal: null, payment: null };
   }
 
   bot.sendMessage(chatId, `${userName}, отправь фото коммуналки 📸`);
   
   // Обрабатываем следующее сообщение как фото
   const messageListener = (incomingMsg) => {
-    if (incomingMsg.chat.id === chatId && incomingMsg.from.id === userId && incomingMsg.photo) {
+    if (incomingMsg.chat.id === chatId && incomingMsg.photo) {
       const fileId = incomingMsg.photo[incomingMsg.photo.length - 1].file_id;
-      data.users[userKey].communal = { fileId, date: new Date().toISOString() };
+      data.history[monthKey].communal = { 
+        fileId, 
+        date: new Date().toISOString(),
+        sentBy: userName
+      };
       saveData();
       
-      bot.sendMessage(chatId, `✅ ${userName}, фото коммуналки сохранено!`);
+      bot.sendMessage(chatId, `✅ Коммуналка за ${monthKey} сохранена!`);
       bot.removeListener('message', messageListener);
     }
   };
@@ -111,33 +109,39 @@ bot.onText(/\/communal/, (msg) => {
 // Обработка команды /pay
 bot.onText(/\/pay/, (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
   const userName = msg.from.first_name;
-  console.log(`📩 Команда /pay получена из чата ID: ${chatId}, от пользователя: ${userName} (${userId})`);
-  const userKey = `${chatId}_${userId}`;
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  console.log(`📩 Команда /pay получена, месяц: ${monthKey}, от пользователя: ${userName}`);
+
+  // Инициализируем месяц если еще нет
+  if (!data.history[monthKey]) {
+    data.history[monthKey] = { communal: null, payment: null };
+  }
   
   bot.sendMessage(chatId, `${userName}, отправь фото/ссылку на чек оплаты 💳`);
   
   // Обрабатываем следующее сообщение как фото/документ/текст
   const messageListener = (incomingMsg) => {
-    if (incomingMsg.chat.id === chatId && incomingMsg.from.id === userId) {
+    if (incomingMsg.chat.id === chatId) {
       if (incomingMsg.photo || incomingMsg.document || incomingMsg.text) {
         let paymentInfo = null;
         
         if (incomingMsg.photo) {
           const fileId = incomingMsg.photo[incomingMsg.photo.length - 1].file_id;
-          paymentInfo = { type: 'photo', fileId, date: new Date().toISOString() };
+          paymentInfo = { type: 'photo', fileId, date: new Date().toISOString(), paidBy: userName };
         } else if (incomingMsg.document) {
           const fileId = incomingMsg.document.file_id;
-          paymentInfo = { type: 'document', fileId, date: new Date().toISOString() };
+          paymentInfo = { type: 'document', fileId, date: new Date().toISOString(), paidBy: userName };
         } else if (incomingMsg.text) {
-          paymentInfo = { type: 'text', content: incomingMsg.text, date: new Date().toISOString() };
+          paymentInfo = { type: 'text', content: incomingMsg.text, date: new Date().toISOString(), paidBy: userName };
         }
         
-        data.users[userKey].payment = paymentInfo;
+        data.history[monthKey].payment = paymentInfo;
         saveData();
         
-        bot.sendMessage(chatId, `✅ ${userName}, оплата сохранена!`);
+        bot.sendMessage(chatId, `✅ Оплата за ${monthKey} сохранена!`);
         bot.removeListener('message', messageListener);
       }
     }
@@ -149,31 +153,35 @@ bot.onText(/\/pay/, (msg) => {
 // Обработка команды /status
 bot.onText(/\/status/, (msg) => {
   const chatId = msg.chat.id;
-  console.log(`📩 Команда /status получена из чата ID: ${chatId}, от пользователя: ${msg.from.first_name} (${msg.from.id})`);
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   
-  // Получаем всех пользователей этого чата
-  const chatUsers = Object.values(data.users).filter(u => u.chatId === chatId);
+  console.log(`📩 Команда /status получена, запрошен статус за месяц: ${monthKey}`);
+
+  const currentMonth = data.history[monthKey] || { communal: null, payment: null };
   
-  if (chatUsers.length === 0) {
-    bot.sendMessage(chatId, '👥 Никто еще не отправлял коммуналку в этом чате.\nИспользуйте команду /communal');
-    return;
+  let statusText = `📊 Статус за ${monthKey}:\n\n`;
+  
+  statusText += '📄 Коммуналка: ';
+  if (currentMonth.communal) {
+    statusText += `✅ Отправлена ${new Date(currentMonth.communal.date).toLocaleDateString()}\n`;
+    statusText += `   Отправил: ${currentMonth.communal.sentBy}\n`;
+  } else {
+    statusText += '❌ Еще не отправлена\n';
   }
   
-  let statusText = '📊 Общий статус по чату:\n\n';
-  
-  chatUsers.forEach(user => {
-    statusText += `👤 ${user.name}:\n`;
-    statusText += user.communal ? '   ✅ Коммуналка отправлена\n' : '   ❌ Коммуналка не отправлена\n';
-    statusText += user.payment ? '   ✅ Оплата подтверждена\n\n' : '   ❌ Оплата не подтверждена\n\n';
-  });
-  
-  const allSent = chatUsers.every(u => u.communal);
-  const allPaid = chatUsers.every(u => u.payment);
-  
-  if (allSent && allPaid) {
-    statusText += '🎉 Все сделано! На этом месяц закрыт.';
-  } else if (allSent) {
-    statusText += '✓ Все коммуналки собраны, осталось оплатить.';
+  statusText += '\n💳 Оплата: ';
+  if (currentMonth.payment) {
+    statusText += `✅ Оплачена ${new Date(currentMonth.payment.date).toLocaleDateString()}\n`;
+    statusText += `   Оплатил: ${currentMonth.payment.paidBy}\n`;
+  } else {
+    statusText += '❌ Еще не оплачена\n';
+  }
+
+  if (currentMonth.communal && currentMonth.payment) {
+    statusText += '\n🎉 Все сделано! На этом месяц закрыт.';
+  } else if (currentMonth.communal) {
+    statusText += '\n✓ Коммуналка собрана, осталось оплатить.';
   }
   
   bot.sendMessage(chatId, statusText);
