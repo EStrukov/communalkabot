@@ -2,7 +2,22 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 
 // Создаем бота с поллингом
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { 
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  }
+});
+
+// Отключаем вывод пустых polling ошибок
+bot.on('polling_error', (error) => {
+  if (error.message && error.message !== 'ETELEGRAM: 409 Conflict: terminated by other getUpdates request') {
+    console.log(`⚠️ Polling error: ${error.message}`);
+  }
+});
 
 // Путь к файлу данных
 const DATA_FILE = 'data.json';
