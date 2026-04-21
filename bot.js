@@ -56,6 +56,14 @@ function sendReminder() {
   // Получаем уникальные id чатов
   const uniqueChats = [...new Set(Object.values(data.users).map(u => u.chatId))];
   
+  // Принудительно добавляем основной чат если указан в переменных окружения
+  if (process.env.DEFAULT_CHAT_ID) {
+    const defaultChatId = Number(process.env.DEFAULT_CHAT_ID);
+    if (!uniqueChats.includes(defaultChatId)) {
+      uniqueChats.push(defaultChatId);
+    }
+  }
+  
   console.log(`✅ Найдено чатов для отправки: ${uniqueChats.length}`);
   console.log(`ID чатов: ${uniqueChats.join(', ')}`);
 
@@ -75,6 +83,7 @@ bot.onText(/\/communal/, (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const userName = msg.from.first_name;
+  console.log(`📩 Команда /communal получена из чата ID: ${chatId}, от пользователя: ${userName} (${userId})`);
   const userKey = `${chatId}_${userId}`;
 
   // Сохраняем информацию о пользователе
@@ -104,6 +113,7 @@ bot.onText(/\/pay/, (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const userName = msg.from.first_name;
+  console.log(`📩 Команда /pay получена из чата ID: ${chatId}, от пользователя: ${userName} (${userId})`);
   const userKey = `${chatId}_${userId}`;
   
   bot.sendMessage(chatId, `${userName}, отправь фото/ссылку на чек оплаты 💳`);
@@ -139,6 +149,7 @@ bot.onText(/\/pay/, (msg) => {
 // Обработка команды /status
 bot.onText(/\/status/, (msg) => {
   const chatId = msg.chat.id;
+  console.log(`📩 Команда /status получена из чата ID: ${chatId}, от пользователя: ${msg.from.first_name} (${msg.from.id})`);
   
   // Получаем всех пользователей этого чата
   const chatUsers = Object.values(data.users).filter(u => u.chatId === chatId);
@@ -178,7 +189,7 @@ setTimeout(() => {
   if (day >= 20 && !data.lastReminder) {
     console.log('⚠️ Сегодня >=20 число, напоминание будет отправлено');
   }
-}, 30000);
+}, 10000);
 
 // Проверяем напоминание каждый час
 setInterval(() => checkReminder(false), 60 * 60 * 1000);
