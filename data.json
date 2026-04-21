@@ -1,4 +1,18 @@
 {
-  "history": {},
+  "history": {
+    "2026-04": {
+      "communal": {
+        "fileId": "AgACAgIAAxkBAAMLaedFrrTAp-v86qgoeSonldufey0AAiEUaxunjDhLKeygqOs7z2oBAAMCAAN5AAM7BA",
+        "date": "2026-04-21T09:59:01.759Z",
+        "sentBy": "Eugeny"
+      },
+      "payment": {
+        "type": "photo",
+        "fileId": "AgACAgIAAxkBAAMLaedFrrTAp-v86qgoeSonldufey0AAiEUaxunjDhLKeygqOs7z2oBAAMCAAN5AAM7BA",
+        "date": "2026-04-21T09:59:25.233Z",
+        "paidBy": "Eugeny"
+      }
+    }
+  },
   "lastReminder": "2026-04-21T09:54:23.087Z"
 }

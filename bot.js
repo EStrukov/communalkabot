@@ -1,5 +1,15 @@
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
+const express = require('express');
+const app = express();
+
+// Ваш бот код
+app.use(express.json());
+
+// Health check для keep-alive
+app.get('/ping', (req, res) => {
+    res.send('Bot is alive');
+});
 
 // Создаем бота с поллингом
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { 
