@@ -23,11 +23,16 @@ bot.on('polling_error', (error) => {
 const DATA_FILE = 'data.json';
 
 // Загружаем данные
-let data = {};
+let data = { history: {}, lastReminder: null };
 try {
-  data = require('./' + DATA_FILE);
+  const loaded = require('./' + DATA_FILE);
+  // Гарантируем что все поля всегда существуют
+  data = {
+    history: loaded.history || {},
+    lastReminder: loaded.lastReminder || null
+  };
 } catch (e) {
-  data = { history: {}, lastReminder: null };
+  console.log('📄 Файл данных не найден, создаю новый');
 }
 
 // Сохраняем данные в файл
