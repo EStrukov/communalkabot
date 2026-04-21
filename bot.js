@@ -207,6 +207,82 @@ bot.onText(/\/status/, (msg) => {
   bot.sendMessage(chatId, statusText);
 });
 
+// Обработка любых фото отправленных в чат
+bot.on('message', (msg) => {
+  if (msg.photo && !msg.text) {
+    const chatId = msg.chat.id;
+    const userName = msg.from.first_name;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    console.log(`📸 Получено фото от ${userName}, предлагаю выбрать тип`);
+
+    // Спрашиваем что это за фото
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '📄 Это коммуналка', callback_data: `communal_${monthKey}` },
+            { text: '💳 Это чек оплаты', callback_data: `payment_${monthKey}` }
+          ]
+        ]
+      }
+    };
+
+    // Сохраняем файл id чтобы потом сохранить
+    const fileId = msg.photo[msg.photo.length - 1].file_id;
+    tempFiles[msg.message_id] = { fileId, userName, chatId };
+
+    bot.sendMessage(chatId, `👌 Получил фото! Это коммуналка или чек оплаты?`, options);
+  }
+});
+
+// Временное хранилище полученных фото
+const tempFiles = {};
+
+// Обработка нажатия кнопок
+bot.on('callback_query', (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const data = callbackQuery.data;
+  const messageId = callbackQuery.message.message_id;
+
+  // Очищаем клавиатуру
+  bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
+
+  if (!tempFiles[messageId]) return;
+
+  const { fileId, userName } = tempFiles[messageId];
+  delete tempFiles[messageId];
+
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    if (!data.history[monthKey]) {
+      data.history[monthKey] = { communal: null, payment: null };
+    }
+
+  if (data.startsWith('communal_')) {
+    data.history[monthKey].communal = {
+      fileId,
+      date: new Date().toISOString(),
+      sentBy: userName
+    };
+    saveData();
+    bot.sendMessage(chatId, `✅ Коммуналка за ${monthKey} сохранена! Спасибо ${userName}!`);
+  }
+
+  if (data.startsWith('payment_')) {
+    data.history[monthKey].payment = {
+      type: 'photo',
+      fileId,
+      date: new Date().toISOString(),
+      paidBy: userName
+    };
+    saveData();
+    bot.sendMessage(chatId, `✅ Оплата за ${monthKey} сохранена! Спасибо ${userName}!`);
+  }
+});
+
 // Проверяем напоминание при запуске (ждем полной инициализации бота 30 секунд)
 setTimeout(() => {
   console.log('⏳ Прошло 30 секунд, бот полностью готов, проверяю напоминания');
