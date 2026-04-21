@@ -56,8 +56,17 @@ function sendReminder() {
   // Получаем уникальные id чатов
   const uniqueChats = [...new Set(Object.values(data.users).map(u => u.chatId))];
   
+  console.log(`✅ Найдено чатов для отправки: ${uniqueChats.length}`);
+  console.log(`ID чатов: ${uniqueChats.join(', ')}`);
+
   uniqueChats.forEach(chatId => {
-    bot.sendMessage(chatId, '🔔 Внимание! Пришло время скинуть коммуналку! 🏠💰\nИспользуйте команду /communal');
+    bot.sendMessage(chatId, '🔔 Внимание! Пришло время скинуть коммуналку! 🏠💰\nИспользуйте команду /communal')
+      .then(() => {
+        console.log(`✅ Напоминание успешно отправлено в чат ${chatId}`);
+      })
+      .catch(err => {
+        console.log(`❌ Ошибка отправки в чат ${chatId}:`, err.message);
+      });
   });
 }
 
@@ -159,16 +168,17 @@ bot.onText(/\/status/, (msg) => {
   bot.sendMessage(chatId, statusText);
 });
 
-// Проверяем напоминание при запуске
+// Проверяем напоминание при запуске (ждем полной инициализации бота 30 секунд)
 setTimeout(() => {
+  console.log('⏳ Прошло 30 секунд, бот полностью готов, проверяю напоминания');
   checkReminder(true); // true = это проверка при старте
   const now = new Date();
   const day = now.getDate();
   
   if (day >= 20 && !data.lastReminder) {
-    console.log('⚠️ Сегодня >=20 число, напоминание отправлено сразу при старте');
+    console.log('⚠️ Сегодня >=20 число, напоминание будет отправлено');
   }
-}, 10000);
+}, 30000);
 
 // Проверяем напоминание каждый час
 setInterval(() => checkReminder(false), 60 * 60 * 1000);
