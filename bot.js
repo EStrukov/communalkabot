@@ -219,7 +219,7 @@ bot.onText(/\/status/, (msg) => {
 
 // Обработка любых фото отправленных в чат
 bot.on('message', (msg) => {
-      console.log(`${chatId}`);
+      console.log(`${msg.chat.id}`);
 
   if (msg.photo && !msg.text) {
     const chatId = msg.chat.id;
