@@ -30,3 +30,4 @@
 - Просмотр статуса
 
 nohup node bot.js &
+pkill -f node && rm nohup.out
