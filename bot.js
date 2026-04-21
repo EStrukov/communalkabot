@@ -231,9 +231,15 @@ bot.on('message', (msg) => {
 
     // Сохраняем файл id чтобы потом сохранить
     const fileId = msg.photo[msg.photo.length - 1].file_id;
-    tempFiles[msg.message_id] = { fileId, userName, chatId };
+    const tempKey = `${chatId}_${msg.message_id}`;
+    tempFiles[tempKey] = { fileId, userName };
 
-    bot.sendMessage(chatId, `👌 Получил фото! Это коммуналка или чек оплаты?`, options);
+    bot.sendMessage(chatId, `👌 Получил фото! Это коммуналка или чек оплаты?`, options)
+      .then((sentMsg) => {
+        // Сохраняем под id уже отправленного сообщения с кнопками
+        tempFiles[`${chatId}_${sentMsg.message_id}`] = { fileId, userName };
+        delete tempFiles[tempKey];
+      });
   }
 });
 
@@ -245,19 +251,21 @@ bot.on('callback_query', (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const action = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
+  const tempKey = `${chatId}_${messageId}`;
 
-  console.log(`🔘 Нажата кнопка: ${action}`);
+  console.log(`🔘 Нажата кнопка: ${action}, ключ: ${tempKey}`);
 
   // Очищаем клавиатуру
   bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
 
-  if (!tempFiles[messageId]) {
+  if (!tempFiles[tempKey]) {
     console.log('❌ Файл не найден во временном хранилище');
+    console.log('📋 Содержимое временного хранилища:', Object.keys(tempFiles));
     return;
   }
 
-  const { fileId, userName } = tempFiles[messageId];
-  delete tempFiles[messageId];
+  const { fileId, userName } = tempFiles[tempKey];
+  delete tempFiles[tempKey];
 
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
