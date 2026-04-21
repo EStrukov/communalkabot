@@ -243,35 +243,41 @@ const tempFiles = {};
 // Обработка нажатия кнопок
 bot.on('callback_query', (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
+  const action = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
+
+  console.log(`🔘 Нажата кнопка: ${action}`);
 
   // Очищаем клавиатуру
   bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
 
-  if (!tempFiles[messageId]) return;
+  if (!tempFiles[messageId]) {
+    console.log('❌ Файл не найден во временном хранилище');
+    return;
+  }
 
   const { fileId, userName } = tempFiles[messageId];
   delete tempFiles[messageId];
 
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    if (!data.history[monthKey]) {
-      data.history[monthKey] = { communal: null, payment: null };
-    }
+  if (!data.history[monthKey]) {
+    data.history[monthKey] = { communal: null, payment: null };
+  }
 
-  if (data.startsWith('communal_')) {
+  if (action.startsWith('communal_')) {
     data.history[monthKey].communal = {
       fileId,
       date: new Date().toISOString(),
       sentBy: userName
     };
     saveData();
+    console.log(`✅ Коммуналка сохранена за ${monthKey}`);
     bot.sendMessage(chatId, `✅ Коммуналка за ${monthKey} сохранена! Спасибо ${userName}!`);
   }
 
-  if (data.startsWith('payment_')) {
+  if (action.startsWith('payment_')) {
     data.history[monthKey].payment = {
       type: 'photo',
       fileId,
@@ -279,6 +285,7 @@ bot.on('callback_query', (callbackQuery) => {
       paidBy: userName
     };
     saveData();
+    console.log(`✅ Оплата сохранена за ${monthKey}`);
     bot.sendMessage(chatId, `✅ Оплата за ${monthKey} сохранена! Спасибо ${userName}!`);
   }
 });
