@@ -22,16 +22,32 @@ function saveData() {
 }
 
 // Проверяем нужно ли отправить напоминание
-function checkReminder() {
+function checkReminder(isStartupCheck = false) {
   const now = new Date();
   const day = now.getDate();
+  const hours = now.getHours();
   const lastReminder = data.lastReminder;
 
-  // Если 20 число или после 20 числа и еще не было напоминания
-  if (day >= 20 && (!lastReminder || new Date(lastReminder).getDate() !== day)) {
+  console.log(`[${now.toLocaleString()}] Проверка напоминаний... Сегодня ${day} число, ${hours} часов`);
+
+  // Условия для отправки напоминания:
+  const shouldSend = day >= 20 
+    && (!lastReminder || new Date(lastReminder).getDate() !== day)
+    && (isStartupCheck || hours === 13); // Только при старте или ровно в 13:00
+
+  if (shouldSend) {
+    console.log('✅ Отправляю напоминание всем чатам');
     sendReminder();
     data.lastReminder = now.toISOString();
     saveData();
+  } else if (day >= 20) {
+    if (new Date(lastReminder).getDate() === day) {
+      console.log('ℹ️ Напоминание сегодня уже было отправлено');
+    } else {
+      console.log(`ℹ️ Напоминание будет отправлено сегодня в 13:00`);
+    }
+  } else {
+    console.log(`ℹ️ До 20 числа еще рано`);
   }
 }
 
@@ -144,9 +160,23 @@ bot.onText(/\/status/, (msg) => {
 });
 
 // Проверяем напоминание при запуске
-checkReminder();
+setTimeout(() => {
+  checkReminder(true); // true = это проверка при старте
+  const now = new Date();
+  const day = now.getDate();
+  
+  if (day >= 20 && !data.lastReminder) {
+    console.log('⚠️ Сегодня >=20 число, напоминание отправлено сразу при старте');
+  }
+}, 10000);
 
-// Проверяем напоминание каждые 24 часа
-setInterval(checkReminder, 24 * 60 * 60 * 1000);
+// Проверяем напоминание каждый час
+setInterval(() => checkReminder(false), 60 * 60 * 1000);
 
-console.log('Бот запущен! 🚀');
+console.log('');
+console.log('✅ Бот запущен и работает!');
+console.log('📅 Напоминания включаются с 20 числа каждого месяца');
+console.log('⏰ Автоматическое напоминание каждый день ровно в 13:00');
+console.log('🔔 При старте бот сразу проверяет и отправляет если нужно');
+console.log('💬 Сегодня напоминание уже было: ' + (data.lastReminder ? '✅ Да' : '❌ Нет'));
+console.log('');
