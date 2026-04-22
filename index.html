@@ -10,8 +10,12 @@
         setInterval(async () => {
             await fetch('https://communalkabot.onrender.com/ping');
         }, 5 * 60 * 900);
+        const btn = document.getElementById('myButton');
+btn.onclick = async () => {
+            await fetch('https://communalkabot.onrender.com/ping');
+        };
     </script>
     Checker page
-    <button onClick={() => fetch('https://communalkabot.onrender.com/ping')}>Click</button>
+    <button id='myButton'>Click</button>
 </body>
 </html>
